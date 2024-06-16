@@ -38,11 +38,6 @@ jobs:
         run: echo "BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
         id: extract_branch
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Containerfile
-          path: Containerfile
-
       - name: Generate image name
         run: |
           REPO_OWNER_LOWERCASE="$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')"
