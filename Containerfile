@@ -1,7 +1,9 @@
 ARG CORE_BRANCH=main
-ARG VARIANT=nvidia
 
 FROM ghcr.io/commonarch/core:$CORE_BRANCH
+
+ARG CORE_BRANCH=main
+ARG VARIANT=nvidia
 
 RUN <<EOF
 pacman -Sy --needed linux-zen linux-firmware broadcom-wl-dkms
