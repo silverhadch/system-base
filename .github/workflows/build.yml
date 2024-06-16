@@ -74,4 +74,5 @@ jobs:
           build-args: |
             CORE_BRANCH=${{ github.ref_name == 'dev' && 'dev' || 'main' }}
             VARIANT=${{ matrix.variant }}
+            DESKTOP=${{ matrix.desktop }}
           provenance: false
