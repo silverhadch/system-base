@@ -5,10 +5,5 @@ FROM ghcr.io/commonarch/core:$CORE_BRANCH
 ARG CORE_BRANCH=main
 ARG VARIANT=nvidia
 
-RUN <<EOF
-pacman -Sy --needed linux-zen linux-firmware broadcom-wl-dkms
-
-if [[ "$VARIANT" == nvidia ]]; then
-    pacman -Sy --needed nvidia-dkms
-fi
-EOF
+RUN pacman -Sy --needed linux-zen linux-firmware broadcom-wl-dkms
+RUN if [ "$VARIANT" == nvidia ]; then pacman -Sy --needed nvidia-dkms; fi
