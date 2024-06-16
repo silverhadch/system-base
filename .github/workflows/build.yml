@@ -21,7 +21,8 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        variant: [general, nvidia]
+        variant: [container, general, nvidia]
+        desktop: [gnome, plasma, mate, budgie, xfce, nogui]
         include:
           - variant: container
             suffix: '-container'
@@ -38,7 +39,7 @@ jobs:
         run: |
           REPO_OWNER_LOWERCASE="$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')"
           echo "REPO_OWNER_LOWERCASE=$REPO_OWNER_LOWERCASE" >> "$GITHUB_ENV"
-          echo "IMAGE_NAME=ghcr.io/$REPO_OWNER_LOWERCASE/system-base${{ matrix.suffix }}" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=ghcr.io/$REPO_OWNER_LOWERCASE/system-base${{ matrix.suffix }}-${{ matrix.desktop }}" >> "$GITHUB_ENV"
 
       - name: Docker meta
         id: docker_meta
