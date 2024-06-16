@@ -16,3 +16,6 @@ RUN if [ "$DESKTOP" == gnome ]; then pacman -Sy --needed --noconfirm gnome; \
   fi
 
 RUN if [ "$VARIANT" == nvidia ]; then pacman -Sy --needed --noconfirm nvidia-dkms; fi
+
+# Clean up cache
+RUN yes | pacman -Scc
