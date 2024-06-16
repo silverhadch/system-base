@@ -7,7 +7,6 @@ ARG VARIANT=general
 ARG DESKTOP=nogui
 
 RUN if [ "$VARIANT" != container ]; then pacman -Sy --needed --noconfirm linux-zen linux-firmware broadcom-wl-dkms; fi
-RUN if [ "$VARIANT" == nvidia ]; then pacman -Sy --needed --noconfirm nvidia-dkms; fi
 
 RUN if [ "$DESKTOP" == gnome ]; then pacman -Sy --needed --noconfirm gnome; \
   elif [ "$DESKTOP" == plasma ]; then pacman -Sy --needed --noconfirm plasma kde-utilities-meta kde-accessibility-meta; \
@@ -15,3 +14,5 @@ RUN if [ "$DESKTOP" == gnome ]; then pacman -Sy --needed --noconfirm gnome; \
   elif [ "$DESKTOP" == mate ]; then pacman -Sy --needed --noconfirm mate mate-extra; \
   elif [ "$DESKTOP" == budgie ]; then pacman -Sy --needed --noconfirm budgie budgie-desktop-view network-manager-applet materia-gtk-theme papirus-icon-theme; \
   fi
+
+RUN if [ "$VARIANT" == nvidia ]; then pacman -Sy --needed --noconfirm nvidia-dkms; fi
