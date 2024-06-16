@@ -23,6 +23,8 @@ jobs:
       matrix:
         variant: [general, nvidia]
         include:
+          - variant: container
+            suffix: '-container'
           - variant: general
             suffix: ''
           - variant: nvidia
