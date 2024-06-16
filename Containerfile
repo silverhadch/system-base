@@ -1,12 +1,9 @@
 ARG CORE_BRANCH=main
-ARG VARIANT=nvidia
 
 FROM ghcr.io/commonarch/core:$CORE_BRANCH
 
-RUN <<EOF
-pacman -Sy --needed linux-zen linux-firmware broadcom-wl-dkms
+ARG CORE_BRANCH=main
+ARG VARIANT=general
 
-if [[ "$VARIANT" == nvidia ]]; then
-    pacman -Sy --needed nvidia-dkms
-fi
-EOF
+RUN pacman -Sy --needed --noconfirm linux-zen linux-firmware broadcom-wl-dkms
+RUN if [ "$VARIANT" == nvidia ]; then pacman -Sy --needed --noconfirm nvidia-dkms; fi

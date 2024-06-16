@@ -32,12 +32,6 @@ jobs:
       - name: Checkout Push to Registry action
         uses: actions/checkout@v4
 
-      # https://stackoverflow.com/a/58035262
-      - name: Extract branch name
-        shell: bash
-        run: echo "BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
-        id: extract_branch
-
       - name: Generate image name
         run: |
           REPO_OWNER_LOWERCASE="$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')"
@@ -75,6 +69,6 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           build-args: |
-            CORE_BRANCH = ${{ env.BRANCH == 'dev' && 'dev' || 'main' }}
-            VARIANT = ${{ matrix.variant }}
+            CORE_BRANCH=${{ github.ref_name == 'dev' && 'dev' || 'main' }}
+            VARIANT=${{ matrix.variant }}
           provenance: false
