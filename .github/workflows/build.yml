@@ -80,6 +80,6 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           build-args: |
-            CORE_BRANCH = ${{ env.BRANCH == 'dev' && dev || main }}
+            CORE_BRANCH = ${{ env.BRANCH == 'dev' && 'dev' || 'main' }}
             VARIANT = ${{ matrix.variant }}
           provenance: false
