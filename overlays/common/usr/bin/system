@@ -1,0 +1,278 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import json
+import yaml
+import click
+import shutil
+import filecmp
+import fasteners
+import subprocess
+
+
+@click.group("cli")
+def cli():
+    """Manage system operations using this utility on CommonArch."""
+
+
+def main():
+    cli(prog_name="system")
+
+
+@cli.command("install")
+@click.argument('pkgs', nargs=-1, required=True)
+def install(pkgs):
+    '''
+    Install custom system packages.
+    '''
+
+    if os.geteuid() != 0:
+        print('e: must be run as root', file=sys.stderr)
+        exit(1)
+
+    pkgs = list(pkgs)
+
+    print('e: unimplemented')
+
+
+@cli.command("remove")
+@click.argument('pkgs', nargs=-1, required=True)
+def remove_host(pkgs):
+    '''
+    Remove custom system packages.
+    '''
+
+    if os.geteuid() != 0:
+        print('e: must be run as root', file=sys.stderr)
+        exit(1)
+
+    orig_pkgs = []
+
+    pkgs = list(pkgs)
+
+    print('e: unimplemented')
+
+
+def rebase(image_name):
+    '''
+    Switch to a different OS image.
+    '''
+
+    if os.geteuid() != 0:
+        print('e: must be run as root', file=sys.stderr)
+        exit(100)
+
+    subprocess.run(['mkdir', '-p', '/var/lib/commonarch'])
+    system_lock = fasteners.InterProcessLock('/var/lib/commonarch/.system-lock')
+    print('i: attempting to acquire system lock')
+
+    with system_lock:
+        subprocess.run(['rm', '-rf', '/var/lib/commonarch/bundle',
+                           '/var/lib/commonarch/system-image', '/.update',
+                           '/.update_rootfs', '/.new.etc', '/.new.var.lib'])
+
+        if os.path.isfile('/etc/blend_release'):
+            with open('/etc/blend_release') as f:
+                blend_release = yaml.safe_load(f)
+                curr_image = blend_release['image']
+
+        print(f'i: rebasing/updating to {image_name}')
+
+        if subprocess.run(['skopeo', 'copy', image_name,
+                           '--dest-shared-blob-dir=/var/lib/commonarch/blobs',
+                           'oci:/var/lib/commonarch/system-image:main']).returncode != 0:
+            print('e: failed to pull image')
+            exit(1)
+
+        subprocess.run(['rm', '-rf', '/var/lib/commonarch/system-image/blobs'])
+        subprocess.run(['ln', '-s', '/var/lib/commonarch/blobs', '/var/lib/commonarch/system-image/blobs'])
+
+        if subprocess.run(['umoci', 'unpack', '--image', '/var/lib/commonarch/system-image:main',
+                           '/var/lib/commonarch/bundle']).returncode != 0:
+            print('e: failed to extract image')
+            exit(1)
+
+        subprocess.run(['rm', '-f', '/var/lib/commonarch/system-image/blobs'])
+
+        with open('/var/lib/commonarch/bundle/config.json') as f:
+            image_config = json.load(f)
+
+        new_rootfs = f'/var/lib/commonarch/bundle/{image_config["root"]["path"]}'
+
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'mkinitcpio', '-P'])
+
+        shutil.copy2('/etc/locale.gen', f'{new_rootfs}/etc/locale.gen')
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'locale-gen'])
+
+        subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', '/.new.etc'])
+
+        if not os.path.isdir('/usr/etc'):
+            subprocess.run(['rm', '-rf', '/usr/etc'])
+            subprocess.run(['cp', '-ax', '/etc', '/usr/etc'])
+
+        etc_diff = filecmp.dircmp('/etc/', '/usr/etc/')
+
+        def get_diff_etc_files(dcmp):
+            dir_name = dcmp.left.replace('/etc/', '/.new.etc/', 1)
+            for name in dcmp.left_only:
+                subprocess.run(['mkdir', '-p', dir_name])
+                subprocess.run(['cp', '-ax', '--', os.path.join(dcmp.left, name), dir_name])
+            for name in dcmp.diff_files:
+                subprocess.run(['cp', '-ax', '--', os.path.join(dcmp.left, name), dir_name])
+            for sub_dcmp in dcmp.subdirs.values():
+                get_diff_etc_files(sub_dcmp)
+
+        get_diff_etc_files(etc_diff)
+
+        try:
+            with open('/etc/passwd') as f:
+                current_passwd_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open('/usr/etc/passwd') as f:
+                current_system_passwd_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open(f'{new_rootfs}/etc/passwd') as f:
+                new_rootfs_passwd_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            new_passwd_entries = list(new_rootfs_passwd_entries.values())
+
+            for user in set(current_passwd_entries.keys()) - set(current_system_passwd_entries.keys()):
+                if int(current_passwd_entries[user].split(':')[2]) >= 1000 and user not in new_rootfs_passwd_entries.keys():
+                    new_passwd_entries.append(current_passwd_entries[user])
+
+            with open('/.new.etc/passwd', 'w') as f:
+                for user in new_passwd_entries:
+                    f.write(user + '\n')
+        except:
+            print('e: malformed /etc/passwd')
+            exit(1)
+
+        try:
+            with open('/etc/shadow') as f:
+                current_shadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open('/usr/etc/shadow') as f:
+                current_system_shadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open(f'{new_rootfs}/etc/shadow') as f:
+                new_rootfs_shadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            new_shadow_entries = list(new_rootfs_shadow_entries.values())
+
+            for user in set(current_shadow_entries.keys()) - set(current_system_shadow_entries.keys()):
+                if int(current_passwd_entries[user].split(':')[2]) >= 1000 and user not in new_rootfs_passwd_entries.keys():
+                    new_shadow_entries.append(current_shadow_entries[user])
+
+            with open('/.new.etc/shadow', 'w') as f:
+                for user in new_shadow_entries:
+                    f.write(user + '\n')
+        except:
+            print('e: malformed /etc/shadow')
+            exit(1)
+
+        try:
+            with open('/etc/group') as f:
+                current_group_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open('/usr/etc/group') as f:
+                current_system_group_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open(f'{new_rootfs}/etc/group') as f:
+                new_rootfs_group_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            new_group_entries = list(new_rootfs_group_entries.values())
+
+            for group in set(current_group_entries.keys()) - set(current_system_group_entries.keys()):
+                if int(current_group_entries[group].split(':')[2]) >= 1000 and group not in new_rootfs_group_entries.keys():
+                    new_group_entries.append(current_group_entries[group])
+
+            with open('/.new.etc/group', 'w') as f:
+                for group in new_group_entries:
+                    f.write(group + '\n')
+        except:
+            print('e: malformed /etc/group')
+            exit(1)
+
+        try:
+            with open('/etc/gshadow') as f:
+                current_gshadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open('/usr/etc/gshadow') as f:
+                current_system_gshadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            with open(f'{new_rootfs}/etc/gshadow') as f:
+                new_rootfs_gshadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
+
+            new_gshadow_entries = []
+
+            for group in set(current_gshadow_entries.keys()) & set(new_rootfs_gshadow_entries.keys()):
+                old_gshadow_entry = current_gshadow_entries[group]
+                new_gshadow_entry = new_rootfs_gshadow_entries[group]
+                for member_user in old_gshadow_entry.split(':')[3].split(','):
+                    if member_user in [passwd_entry.split(':')[0] for passwd_entry in new_passwd_entries] and member_user not in new_gshadow_entry.split(':')[3].split(','):
+                        if new_gshadow_entry.split(':')[3] == '':
+                            new_gshadow_entry += member_user
+                        else:
+                            new_gshadow_entry += ',' + member_user
+                if old_gshadow_entry.split(':')[2] in current_passwd_entries.keys():
+                    new_gshadow_entry = new_gshadow_entry.split(':')[0] + ':' + new_gshadow_entry.split(':')[1] + ':' + old_gshadow_entry.split(':')[2] + ':' + new_gshadow_entry.split(':')[3]
+                new_gshadow_entries.append(new_gshadow_entry)
+
+            for group in set(current_gshadow_entries.keys()) - set(current_system_gshadow_entries.keys()):
+                if int(current_group_entries[group].split(':')[2]) >= 1000 and group not in new_rootfs_gshadow_entries.keys():
+                    new_gshadow_entries.append(current_gshadow_entries[group])
+
+            with open('/.new.etc/gshadow', 'w') as f:
+                for group in new_gshadow_entries:
+                    f.write(group + '\n')
+        except:
+            print('e: malformed /etc/gshadow')
+            exit(1)
+
+        subprocess.run(['cp', '-ax', '/var/lib', '/.new.var.lib'])
+
+        var_lib_diff = filecmp.dircmp(f'{new_rootfs}/var/lib/', '/.new.var.lib/')
+
+        dir_name = '/.new.var.lib/'
+        for name in var_lib_diff.left_only:
+            if os.path.isdir(os.path.join(var_lib_diff.left, name)):
+                subprocess.run(['cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name])
+
+        with open('/.new.etc/commonarch_release', 'w') as f:
+            release = {
+                'image': image_name,
+            }
+            yaml.dump(release, f)
+
+        new_boot_files = []
+
+        subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', f'{new_rootfs}/usr/etc'])
+        subprocess.run(['cp', '-ax', new_rootfs, '/.update_rootfs'])
+
+        for f in os.listdir('/.update_rootfs/boot'):
+            if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
+                exec('mv', f'/.update_rootfs/boot/{f}', '/boot')
+                new_boot_files.append(f)
+
+        for f in os.listdir('/boot'):
+            if not os.path.isdir(f'/boot/{f}'):
+                if f not in new_boot_files:
+                    exec('rm', '-f', f'/boot/{f}')
+
+        exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
+
+    print()
+    print('Rebase complete. You may now reboot.')
+
+
+@cli.command("rebase")
+@click.argument('image_name', nargs=1, required=True)
+def rebase_cmd(image_name):
+    '''
+    Rebase to a different image.
+    '''
+    rebase(image_name)
+
+if __name__ == '__main__':
+    main()
