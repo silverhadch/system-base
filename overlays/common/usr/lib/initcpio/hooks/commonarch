@@ -39,11 +39,11 @@ run_latehook() {
 
     for i in usr varlibpacman usrlocal; do
         rm -rf /new_root/.commonarch-overlays/$i.workdir
-        mkdir -p /new_root/.blend-overlays/$i
-        mkdir -p /new_root/.blend-overlays/$i.workdir
+        mkdir -p /new_root/.commonarch-overlays/$i
+        mkdir -p /new_root/.commonarch-overlays/$i.workdir
     done
 
-    mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir /new_root/usr
-    mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir /new_root/var/lib/pacman
-    mount -t overlay overlay -o rw,lowerdir=/new_root/usr/local,upperdir=/new_root/.blend-overlays/usrlocal,workdir=/new_root/.blend-overlays/usrlocal.workdir /new_root/usr/local
+    mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/usr,upperdir=/new_root/.commonarch-overlays/usr,workdir=/new_root/.commonarch-overlays/usr.workdir /new_root/usr
+    mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.commonarch-overlays/varlibpacman,workdir=/new_root/.commonarch-overlays/varlibpacman.workdir /new_root/var/lib/pacman
+    mount -t overlay overlay -o rw,lowerdir=/new_root/usr/local,upperdir=/new_root/.commonarch-overlays/usrlocal,workdir=/new_root/.commonarch-overlays/usrlocal.workdir /new_root/usr/local
 }

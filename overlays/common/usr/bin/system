@@ -252,13 +252,13 @@ def rebase(image_name):
 
         for f in os.listdir('/.update_rootfs/boot'):
             if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
-                exec('mv', f'/.update_rootfs/boot/{f}', '/boot')
+                subprocess.run(['mv', f'/.update_rootfs/boot/{f}', '/boot'])
                 new_boot_files.append(f)
 
         for f in os.listdir('/boot'):
             if not os.path.isdir(f'/boot/{f}'):
                 if f not in new_boot_files:
-                    exec('rm', '-f', f'/boot/{f}')
+                    subprocess.run(['rm', '-f', f'/boot/{f}'])
 
         exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
 
