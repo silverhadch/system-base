@@ -260,7 +260,7 @@ def rebase(image_name):
                 if f not in new_boot_files:
                     subprocess.run(['rm', '-f', f'/boot/{f}'])
 
-        exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
+        subprocess.run(['grub-mkconfig', '-o', '/boot/grub/grub.cfg'])
 
     print()
     print('Rebase complete. You may now reboot.')
