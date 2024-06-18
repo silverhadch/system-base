@@ -17,5 +17,11 @@ RUN if [ "$DESKTOP" == gnome ]; then install-packages-build gnome; \
 
 RUN if [ "$VARIANT" == nvidia ]; then install-packages-build nvidia-dkms; fi
 
+RUN install-packages-build grub efibootmgr
+
+RUN install-packages-build python-yaml python-click python-fasteners
+
+COPY overlays/common /
+
 # Clean up cache
 RUN yes | pacman -Scc
