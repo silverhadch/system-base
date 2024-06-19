@@ -161,7 +161,7 @@ def rebase(image_name):
             new_shadow_entries = list(new_rootfs_shadow_entries.values())
 
             for user in set(current_shadow_entries.keys()) - set(current_system_shadow_entries.keys()):
-                if int(current_passwd_entries[user].split(':')[2]) >= 1000 and user not in new_rootfs_passwd_entries.keys():
+                if int(current_passwd_entries[user].split(':')[2]) >= 1000 and user not in new_rootfs_shadow_entries.keys():
                     new_shadow_entries.append(current_shadow_entries[user])
 
             with open('/.new.etc/shadow', 'w') as f:
@@ -181,7 +181,18 @@ def rebase(image_name):
             with open(f'{new_rootfs}/etc/group') as f:
                 new_rootfs_group_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
 
-            new_group_entries = list(new_rootfs_group_entries.values())
+            new_group_entries = set(new_rootfs_group_entries.keys()) - set(current_group_entries.keys())
+
+            for group in set(current_group_entries.keys()) & set(new_rootfs_group_entries.keys()):
+                old_group_entry = current_group_entries[group]
+                new_group_entry = new_rootfs_group_entries[group]
+                for member_user in old_group_entry.split(':')[3].split(','):
+                    if member_user in [passwd_entry.split(':')[0] for passwd_entry in new_passwd_entries] and member_user not in new_group_entry.split(':')[3].split(','):
+                        if new_group_entry.split(':')[3] == '':
+                            new_group_entry += member_user
+                        else:
+                            new_group_entry += ',' + member_user
+                new_group_entries.append(new_group_entry)
 
             for group in set(current_group_entries.keys()) - set(current_system_group_entries.keys()):
                 if int(current_group_entries[group].split(':')[2]) >= 1000 and group not in new_rootfs_group_entries.keys():
@@ -215,8 +226,6 @@ def rebase(image_name):
                             new_gshadow_entry += member_user
                         else:
                             new_gshadow_entry += ',' + member_user
-                if old_gshadow_entry.split(':')[2] in current_passwd_entries.keys():
-                    new_gshadow_entry = new_gshadow_entry.split(':')[0] + ':' + new_gshadow_entry.split(':')[1] + ':' + old_gshadow_entry.split(':')[2] + ':' + new_gshadow_entry.split(':')[3]
                 new_gshadow_entries.append(new_gshadow_entry)
 
             for group in set(current_gshadow_entries.keys()) - set(current_system_gshadow_entries.keys()):
