@@ -17,7 +17,7 @@ RUN if [ "$DESKTOP" == gnome ]; then install-packages-build gnome; \
 
 RUN if [ "$DESKTOP" == gnome ]; then install-packages-build gdm; systemctl enable gdm; \
   elif [ "$DESKTOP" == plasma ]; then install-packages-build sddm; systemctl enable sddm; \
-  elif [ "$DESKTOP" == xfce ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm \
+  elif [ "$DESKTOP" == xfce ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm; \
   elif [ "$DESKTOP" == mate ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm; \
   elif [ "$DESKTOP" == budgie ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm; \
   fi
