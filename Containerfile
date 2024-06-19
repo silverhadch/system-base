@@ -15,6 +15,13 @@ RUN if [ "$DESKTOP" == gnome ]; then install-packages-build gnome; \
   elif [ "$DESKTOP" == budgie ]; then install-packages-build budgie budgie-desktop-view network-manager-applet materia-gtk-theme papirus-icon-theme; \
   fi
 
+RUN if [ "$DESKTOP" == gnome ]; then install-packages-build gdm; systemctl enable gdm; \
+  elif [ "$DESKTOP" == plasma ]; then install-packages-build sddm; systemctl enable sddm; \
+  elif [ "$DESKTOP" == xfce ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm \
+  elif [ "$DESKTOP" == mate ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm; \
+  elif [ "$DESKTOP" == budgie ]; then install-packages-build lightdm lightdm-gtk-greeter; systemctl enable lightdm; \
+  fi
+
 RUN if [ "$VARIANT" == nvidia ]; then install-packages-build nvidia-dkms; fi
 
 RUN install-packages-build grub efibootmgr
