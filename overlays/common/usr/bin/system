@@ -54,6 +54,11 @@ def remove_host(pkgs):
     print('e: unimplemented')
 
 
+def build_iso(image_name):
+    '''
+    Build an ISO image.
+    '''
+
 def rebase(image_name):
     '''
     Switch to a different OS image.
