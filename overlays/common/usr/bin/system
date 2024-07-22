@@ -20,44 +20,27 @@ def main():
     cli(prog_name="system")
 
 
-@cli.command("install")
-@click.argument('pkgs', nargs=-1, required=True)
-def install(pkgs):
+@cli.command("update")
+def upgrade():
     '''
-    Install custom system packages.
-    '''
-
-    if os.geteuid() != 0:
-        print('e: must be run as root', file=sys.stderr)
-        exit(1)
-
-    pkgs = list(pkgs)
-
-    print('e: unimplemented')
-
-
-@cli.command("remove")
-@click.argument('pkgs', nargs=-1, required=True)
-def remove_host(pkgs):
-    '''
-    Remove custom system packages.
+    Update your system to the latest available image.
     '''
 
-    if os.geteuid() != 0:
-        print('e: must be run as root', file=sys.stderr)
-        exit(1)
+    try:
+        with open('/system.yaml') as f:
+            system_config = yaml.safe_load(f)
+    except FileNotFoundError:
+        print('e: /system.yaml does not exist, so you likely meant to run `system rebase`.')
+        exit(25)
+    except Exception:
+        print('e: something went wrong (/system.yaml might not be formatted correctly); did you mean to run `system rebase`?')
+        exit(25)
 
-    orig_pkgs = []
+    if type(system_config.get('image')) != str:
+        print('e: no image name defined in /system.yaml. did you mean to run `system rebase`?')
 
-    pkgs = list(pkgs)
+    rebase(system_config['image'])
 
-    print('e: unimplemented')
-
-
-def build_iso(image_name):
-    '''
-    Build an ISO image.
-    '''
 
 def rebase(image_name):
     '''
@@ -77,12 +60,26 @@ def rebase(image_name):
                            '/var/lib/commonarch/system-image', '/.update',
                            '/.update_rootfs', '/.new.etc', '/.new.var.lib'])
 
-        if os.path.isfile('/etc/blend_release'):
-            with open('/etc/blend_release') as f:
-                blend_release = yaml.safe_load(f)
-                curr_image = blend_release['image']
-
         print(f'i: rebasing/updating to {image_name}')
+
+        try:
+            if os.path.isfile('/system.yaml'):
+                with open('/system.yaml') as f:
+                    system_config = yaml.safe_load(f)
+            else:
+                system_config = []
+
+            system_config['image'] = image_name
+
+            # Remove any unsupported configuration options
+            system_config.pop('track', None)
+            system_config.pop('aur-packages', None)
+
+            with open('/system.yaml', 'w') as f:
+                yaml.dump(system_config, f)
+        except Exception:
+            print('e: something went wrong (/system.yaml might not be formatted correctly); did you mean to run `system rebase`?')
+            exit(25)
 
         if subprocess.run(['skopeo', 'copy', image_name,
                            '--dest-shared-blob-dir=/var/lib/commonarch/blobs',
@@ -253,16 +250,35 @@ def rebase(image_name):
             if os.path.isdir(os.path.join(var_lib_diff.left, name)):
                 subprocess.run(['cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name])
 
-        with open('/.new.etc/commonarch_release', 'w') as f:
-            release = {
-                'image': image_name,
-            }
-            yaml.dump(release, f)
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman-key', '--init'])
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman-key', '--populate'])
 
-        new_boot_files = []
+        with open(f'{new_rootfs}/etc/pacman.conf', 'a') as pacman_conf:
+            if type(system_config.get('package-repos')) == list:
+                for package_repo in system_config.get('package-repos'):
+                    if (type(package_repo.get('name')) == str and
+                        type(package_repo.get('repo-url')) == str):
+                        pacman_conf.write(f'''
+[{package_repo["name"]}]
+SigLevel = Never
+Server = {package_repo["repo-url"]}
+''')
+
+        if type(system_config.get('packages')) == list:
+            counter = 0
+            while True:
+                return_val = subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman', '-Sy', '--ask=4', *(system_config.get('packages'))])
+                counter += 1
+                if counter > 30:
+                    print('e: failed to download packages')
+                    exit(50)
+                if return_val == 0:
+                    break
 
         subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', f'{new_rootfs}/usr/etc'])
         subprocess.run(['cp', '-ax', new_rootfs, '/.update_rootfs'])
+
+        new_boot_files = []
 
         for f in os.listdir('/.update_rootfs/boot'):
             if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
