@@ -294,8 +294,8 @@ Server = {package_repo["repo-url"]}
                 if return_val == 0:
                     break
 
-        subprocess.run(['mkdir', '-p', f'{new_rootfs}/var/lib/commonarch'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        with open(f'{new_rootfs}/var/lib/commonarch/revision', 'w') as new_revision_file:
+        subprocess.run(['mkdir', '-p', f'/.new.var.lib/commonarch'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(f'/.new.var.lib/commonarch/revision', 'w') as new_revision_file:
             try:
                 new_revision_file.write(new_revision)
             except Exception:
