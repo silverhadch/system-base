@@ -81,6 +81,21 @@ def rebase(image_name):
             print('e: something went wrong (/system.yaml might not be formatted correctly); did you mean to run `system rebase`?')
             exit(25)
 
+        try:
+            image_metadata = json.loads(subprocess.run(['skopeo', 'inspect', image_name], stdout=subprocess.PIPE).stdout.decode())
+            if (type(image_metadata.get('Labels')) == dict):
+                if type(image_metadata['Labels'].get('org.opencontainers.image.revision')) == str:
+                    new_revision = image_metadata['Labels']['org.opencontainers.image.revision']
+                    if os.path.isfile('/var/lib/commonarch/revision'):
+                        with open('/var/lib/commonarch/revision') as current_revision_file:
+                            current_revision = current_revision_file.read().strip()
+                        if new_revision == current_revision:
+                            print('e: already up-to-date')
+                            exit()
+        except ValueError:
+            print(f'e: failed to read remote metadata for image {image_name}.')
+            print('e: does the image exist, and are you connected to the internet?')
+
         if subprocess.run(['skopeo', 'copy', image_name,
                            '--dest-shared-blob-dir=/var/lib/commonarch/blobs',
                            'oci:/var/lib/commonarch/system-image:main']).returncode != 0:
@@ -274,6 +289,13 @@ Server = {package_repo["repo-url"]}
                     exit(50)
                 if return_val == 0:
                     break
+
+        subprocess.run(['mkdir', '-p', f'{new_rootfs}/var/lib/commonarch'])
+        with open(f'{new_rootfs}/var/lib/commonarch/revision', 'w') as new_revision_file:
+            try:
+                new_revision_file.write(new_revision)
+            except Exception:
+                pass
 
         subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', f'{new_rootfs}/usr/etc'])
         subprocess.run(['cp', '-ax', new_rootfs, '/.update_rootfs'])
