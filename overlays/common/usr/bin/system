@@ -39,10 +39,10 @@ def upgrade():
     if type(system_config.get('image')) != str:
         print('e: no image name defined in /system.yaml. did you mean to run `system rebase`?')
 
-    rebase(system_config['image'])
+    rebase(system_config['image'], updating=True)
 
 
-def rebase(image_name):
+def rebase(image_name, updating=False):
     '''
     Switch to a different OS image.
     '''
@@ -51,16 +51,19 @@ def rebase(image_name):
         print('e: must be run as root', file=sys.stderr)
         exit(100)
 
-    subprocess.run(['mkdir', '-p', '/var/lib/commonarch'])
+    subprocess.run(['mkdir', '-p', '/var/lib/commonarch'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     system_lock = fasteners.InterProcessLock('/var/lib/commonarch/.system-lock')
     print('i: attempting to acquire system lock')
 
     with system_lock:
         subprocess.run(['rm', '-rf', '/var/lib/commonarch/bundle',
                            '/var/lib/commonarch/system-image', '/.update',
-                           '/.update_rootfs', '/.new.etc', '/.new.var.lib'])
+                           '/.update_rootfs', '/.new.etc', '/.new.var.lib'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        print(f'i: rebasing/updating to {image_name}')
+        if updating:
+            print(f'i: updating system (using image {image_name})')
+        else:
+            print(f'i: rebasing to {image_name}')
 
         try:
             if os.path.isfile('/system.yaml'):
@@ -89,9 +92,10 @@ def rebase(image_name):
                     if os.path.isfile('/var/lib/commonarch/revision'):
                         with open('/var/lib/commonarch/revision') as current_revision_file:
                             current_revision = current_revision_file.read().strip()
-                        if new_revision == current_revision:
-                            print('e: already up-to-date')
-                            exit()
+                        if updating:
+                            if new_revision == current_revision:
+                                print('e: already up-to-date')
+                                exit(75)
         except ValueError:
             print(f'e: failed to read remote metadata for image {image_name}.')
             print('e: does the image exist, and are you connected to the internet?')
@@ -117,10 +121,10 @@ def rebase(image_name):
 
         new_rootfs = f'/var/lib/commonarch/bundle/{image_config["root"]["path"]}'
 
-        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'mkinitcpio', '-P'])
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'mkinitcpio', '-P'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         shutil.copy2('/etc/locale.gen', f'{new_rootfs}/etc/locale.gen')
-        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'locale-gen'])
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'locale-gen'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', '/.new.etc'])
 
@@ -256,17 +260,17 @@ def rebase(image_name):
             print('e: malformed /etc/gshadow')
             exit(1)
 
-        subprocess.run(['cp', '-ax', '/var/lib', '/.new.var.lib'])
+        subprocess.run(['cp', '-ax', '/var/lib', '/.new.var.lib'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         var_lib_diff = filecmp.dircmp(f'{new_rootfs}/var/lib/', '/.new.var.lib/')
 
         dir_name = '/.new.var.lib/'
         for name in var_lib_diff.left_only:
             if os.path.isdir(os.path.join(var_lib_diff.left, name)):
-                subprocess.run(['cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name])
+                subprocess.run(['cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman-key', '--init'])
-        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman-key', '--populate'])
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman-key', '--init'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman-key', '--populate'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         with open(f'{new_rootfs}/etc/pacman.conf', 'a') as pacman_conf:
             if type(system_config.get('package-repos')) == list:
@@ -290,21 +294,21 @@ Server = {package_repo["repo-url"]}
                 if return_val == 0:
                     break
 
-        subprocess.run(['mkdir', '-p', f'{new_rootfs}/var/lib/commonarch'])
+        subprocess.run(['mkdir', '-p', f'{new_rootfs}/var/lib/commonarch'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         with open(f'{new_rootfs}/var/lib/commonarch/revision', 'w') as new_revision_file:
             try:
                 new_revision_file.write(new_revision)
             except Exception:
                 pass
 
-        subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', f'{new_rootfs}/usr/etc'])
-        subprocess.run(['cp', '-ax', new_rootfs, '/.update_rootfs'])
+        subprocess.run(['cp', '-ax', f'{new_rootfs}/etc', f'{new_rootfs}/usr/etc'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['cp', '-ax', new_rootfs, '/.update_rootfs'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         new_boot_files = []
 
         for f in os.listdir('/.update_rootfs/boot'):
             if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
-                subprocess.run(['mv', f'/.update_rootfs/boot/{f}', '/boot'])
+                subprocess.run(['mv', f'/.update_rootfs/boot/{f}', '/boot'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 new_boot_files.append(f)
 
         for f in os.listdir('/boot'):
