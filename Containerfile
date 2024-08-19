@@ -30,5 +30,7 @@ RUN install-packages-build python-yaml python-click python-fasteners skopeo umoc
 
 COPY overlays/common /
 
+RUN systemctl enable commonarch-update-cleanup
+
 # Clean up cache
 RUN yes | pacman -Scc
