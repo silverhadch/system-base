@@ -21,7 +21,8 @@ def main():
 
 
 @cli.command("update")
-def upgrade():
+@click.option('-f', '--force', is_flag=True)
+def upgrade(force):
     '''
     Update your system to the latest available image.
     '''
@@ -39,7 +40,7 @@ def upgrade():
     if type(system_config.get('image')) != str:
         print('e: no image name defined in /system.yaml. did you mean to run `system rebase`?')
 
-    rebase(system_config['image'], updating=True)
+    rebase(system_config['image'], updating=(not force))
 
 
 def rebase(image_name, updating=False):
@@ -81,7 +82,7 @@ def rebase(image_name, updating=False):
             with open('/system.yaml', 'w') as f:
                 yaml.dump(system_config, f)
         except Exception:
-            print('e: something went wrong (/system.yaml might not be formatted correctly); did you mean to run `system rebase`?')
+            print('e: something went wrong (/system.yaml might not be formatted correctly); did you mean to run `system rebase\'?')
             exit(25)
 
         try:
@@ -99,6 +100,7 @@ def rebase(image_name, updating=False):
         except ValueError:
             print(f'e: failed to read remote metadata for image {image_name}.')
             print('e: does the image exist, and are you connected to the internet?')
+            exit(1)
 
         if subprocess.run(['skopeo', 'copy', image_name,
                            '--dest-shared-blob-dir=/var/lib/commonarch/blobs',
