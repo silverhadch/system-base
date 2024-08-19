@@ -286,15 +286,7 @@ Server = {package_repo["repo-url"]}
 ''')
 
         if type(system_config.get('packages')) == list:
-            counter = 0
-            while True:
-                return_val = subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman', '-Sy', '--ask=4', *(system_config.get('packages'))])
-                counter += 1
-                if counter > 30:
-                    print('e: failed to download packages')
-                    exit(50)
-                if return_val == 0:
-                    break
+            subprocess.run(['systemd-nspawn', '-D', new_rootfs, 'pacman', '-Sy', '--ask=4', *(system_config.get('packages'))])
 
         subprocess.run(['mkdir', '-p', f'/.new.var.lib/commonarch'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         with open(f'/.new.var.lib/commonarch/revision', 'w') as new_revision_file:
