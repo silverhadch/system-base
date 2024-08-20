@@ -208,7 +208,8 @@ def rebase(image_name, updating=False):
             with open(f'{new_rootfs}/etc/group') as f:
                 new_rootfs_group_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
 
-            new_group_entries = list(set(new_rootfs_group_entries.keys()) - set(current_system_group_entries.keys()))
+            new_group_entries_names = list(set(new_rootfs_group_entries.keys()) - set(current_system_group_entries.keys()))
+            new_group_entries = [ new_rootfs_group_entries[new_group_entries_name] for new_group_entries_name in new_group_entries_names ]
 
             for group in (set(current_system_group_entries.keys()) & set(new_rootfs_group_entries.keys())) & set(current_group_entries.keys()):
                 old_group_entry = current_group_entries[group]
@@ -242,7 +243,8 @@ def rebase(image_name, updating=False):
             with open(f'{new_rootfs}/etc/gshadow') as f:
                 new_rootfs_gshadow_entries = { line.strip().split(':')[0]: line.strip() for line in f if line.strip() }
 
-            new_gshadow_entries = list(set(new_rootfs_gshadow_entries.keys()) - set(current_system_gshadow_entries.keys()))
+            new_gshadow_entries_names = list(set(new_rootfs_gshadow_entries.keys()) - set(current_system_gshadow_entries.keys()))
+            new_gshadow_entries = [ new_rootfs_gshadow_entries[new_gshadow_entries_name] for new_gshadow_entries_name in new_gshadow_entries_names ]
 
             for group in (set(current_system_gshadow_entries.keys()) & set(new_rootfs_gshadow_entries.keys())) & set(current_gshadow_entries.keys()):
                 old_gshadow_entry = current_gshadow_entries[group]
