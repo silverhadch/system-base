@@ -1,6 +1,6 @@
 ARG CORE_BRANCH=main
 
-FROM ghcr.io/commonarch/core:$CORE_BRANCH
+FROM ghcr.io/silverhadch/core:$CORE_BRANCH
 
 ARG CORE_BRANCH=main
 ARG VARIANT=general
