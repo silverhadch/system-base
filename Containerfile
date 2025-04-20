@@ -1,5 +1,6 @@
 ARG CORE_BRANCH=main
 
+# Pull from my fork of core image instead.
 FROM ghcr.io/silverhadch/core:$CORE_BRANCH
 
 ARG CORE_BRANCH=main
