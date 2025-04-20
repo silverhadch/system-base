@@ -9,6 +9,8 @@ on: # https://docs.github.com/en/actions/using-workflows/events-that-trigger-wor
     paths-ignore: # don't rebuild if only documentation has changed
       - "**.md"
   workflow_dispatch:
+  schedule:
+    - cron: '20 4 * * *' 
 
 jobs:
   build:
